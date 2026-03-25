@@ -1,0 +1,5 @@
+hand_landmarker.task
+venv/
+*.png
+__pycache__/
+*.pyc
