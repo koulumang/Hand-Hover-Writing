@@ -24,6 +24,7 @@ points = deque(maxlen=1000)
 is_drawing = False
 smooth_buffer = deque(maxlen=5)
 fps_buffer = deque(maxlen=30)
+canvas_transparent = None
 
 def get_distance(p1, p2):
     return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
@@ -44,13 +45,19 @@ while True:
         break
     
     frame = cv2.flip(frame, 1)
+    h, w, _ = frame.shape
+
+    if canvas_transparent is None:
+        canvas_transparent = np.zeros((h, w, 4), dtype=np.uint8)
+
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
     results = detector.detect_for_video(mp_image, int(cv2.getTickCount()))
-    
-    if results.hand_landmarks:
+
+    if not results.hand_landmarks or len(results.hand_landmarks) == 0:
+        pass
+    else:
         hand = results.hand_landmarks[0]
-        h, w, _ = frame.shape
         
         thumb_tip = hand[4]
         index_tip = hand[8]
@@ -78,6 +85,7 @@ while True:
         if points[i-1] is None or points[i] is None:
             continue
         cv2.line(frame, points[i-1], points[i], (255, 0, 0), 3)
+        cv2.line(canvas_transparent, points[i-1], points[i], (255, 0, 0, 255), 3)
     
     fps = 1.0 / (time.time() - start_time)
     fps_buffer.append(fps)
@@ -95,8 +103,10 @@ while True:
         break
     elif k == ord('c'):
         points.clear()
+        if canvas_transparent is not None:
+            canvas_transparent[:] = 0
     elif k == ord('s'):
-        cv2.imwrite('drawing.png', frame)
+        cv2.imwrite('drawing.png', canvas_transparent)
         print("Saved as drawing.png")
 
 video.release()
